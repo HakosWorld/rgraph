@@ -7,9 +7,13 @@
     "@emotion/styled": "^11.14.0",
     "@mui/material": "^6.4.3",
     "cra-template": "1.2.0",
+    "graphql": "^16.10.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "react-router-dom": "^7.1.5",
     "react-scripts": "5.0.1",
+    "recharts": "^2.15.1",
+    "rgraph": "file:",
     "web-vitals": "^4.2.4"
   },
   "scripts": {
