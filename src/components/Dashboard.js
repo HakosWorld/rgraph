@@ -139,12 +139,23 @@ const Dashboard = () => {
                        }
                    }
                   }
-                  transaction(where: { type: { _eq: "xp" } }) {
-                    amount
-                    type
-                    createdAt
-                    path
-                  }
+                  transaction(
+    where: {
+      type: { _eq: "xp" }
+      _and: [
+        { path: { _nlike: "%/%piscine%/%" } }
+         { path: { _nlike: "%/%piscine%/" } }
+         { path: { _nlike: "%/%piscine/%" } }
+     
+      ]
+    }
+  ) {
+    amount
+    type
+    createdAt
+    path
+  }
+                  
                 }
               `,
             }),
@@ -228,12 +239,16 @@ const Dashboard = () => {
   const expiredAudits = audits.filter(
     (audit) => audit.closureType === "expired"
   );
-
   const totalAudits = audits.length;
-  const reassignedRatio = (reassignedAudits.length / totalAudits) * 100;
-  const unusedRatio = (unusedAudits.length / totalAudits) * 100;
-  const succeededRatio = (succeededAudits.length / totalAudits) * 100;
-  const expiredRatio = (expiredAudits.length / totalAudits) * 100;
+  let reassignedRatio = (reassignedAudits.length / totalAudits) * 100;
+
+  let unusedRatio = (unusedAudits.length / totalAudits) * 100;
+
+  let succeededRatio = (succeededAudits.length / totalAudits) * 100;
+
+  let expiredRatio = (expiredAudits.length / totalAudits) * 100;
+
+  
 
   // Data for Pie chart
   const chartData = [
@@ -382,20 +397,27 @@ const Dashboard = () => {
   </Typography>
 
   <Typography variant="body1" sx={{ color: "#FFFFFF", fontWeight: "bold" }}> {/* White & Bold Label */}
-    Total Upvotes: <span style={{ color: "#AAAAAA", fontWeight: "normal" }}>{data.user[0].totalUp}</span>
+    Total Upvotes:  <span style={{ color: "#AAAAAA", fontWeight: "normal" }}>
+    {data.user[0].totalUp ? (data.user[0].totalUp / 1024).toFixed(2) : "N/A"} KB
+  </span>
   </Typography>
 
   <Typography variant="body1" sx={{ color: "#FFFFFF", fontWeight: "bold" }}>
-    Total Downvotes: <span style={{ color: "#AAAAAA", fontWeight: "normal" }}>{data.user[0].totalDown}</span>
+    Total Downvotes:<span style={{ color: "#AAAAAA", fontWeight: "normal" }}>
+    {data.user[0].totalDown ? (data.user[0].totalDown / 1024).toFixed(2) : "N/A"} KB
+  </span>
   </Typography>
 
   <Typography variant="body1" sx={{ color: "#FFFFFF", fontWeight: "bold" }}>
-    Audit Ratio: <span style={{ color: "#AAAAAA", fontWeight: "normal" }}>{auditRatio}</span>
+    Audit Ratio: <span style={{ color: "#AAAAAA", fontWeight: "normal" }}> {auditRatio.toFixed(2)}</span>
   </Typography>
 
   <Typography variant="body1" sx={{ color: "#FFFFFF", fontWeight: "bold" }}>
-    Total XP: <span style={{ color: "#AAAAAA", fontWeight: "normal" }}>{totalXP}</span>
-  </Typography>
+  Total XP:{" "}
+  <span style={{ color: "#AAAAAA", fontWeight: "normal" }}>
+    {totalXP ? (totalXP / 1024).toFixed(2) + " KB" : "0 KB"}
+  </span>
+</Typography>
 </GlassPanel>
 
   </Grid>
@@ -475,7 +497,9 @@ const Dashboard = () => {
 <Cell fill="#34495E" /> {/* Dark Gray-Blue */}
               </Pie>
 
-              <Tooltip />
+              <Tooltip
+              formatter={(value) => `${value.toFixed(2)}%`}
+              />
 
               <Legend />
             </PieChart>
