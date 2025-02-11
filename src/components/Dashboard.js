@@ -1,6 +1,5 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { useTheme } from "@mui/material/styles";
 import {
   CircularProgress,
   Container,
@@ -26,8 +25,6 @@ import {
   PieChart,
   Pie,
   Cell,
-  Tooltip as RechartTooltip,
-  Legend as RechartLegend,
 } from "recharts";
 import Particles from "react-tsparticles";
 import { loadSlim } from "tsparticles-slim";
@@ -95,7 +92,6 @@ const Dashboard = () => {
     await loadSlim(engine);
   }, []);
 
-  const theme = useTheme();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -445,9 +441,9 @@ const Dashboard = () => {
         </Grid>
 
         {/* Audit Chart */}
-        <Box sx={{ mb: 4 }}> {/* Add margin-bottom here */}
+        <Box sx={{ mb: 120 }}> {/* Add margin-bottom here */}
 
-        <GlassPanel sx={{ mb: 20 }}> 
+        <GlassPanel sx={{ mb: 60 }}> 
         <Typography variant="h5" sx={{ mb: 2 }}>
             Audit Results
           </Typography>
@@ -491,8 +487,18 @@ const Dashboard = () => {
           </Paper>
         </GlassPanel>
         </Box>
-
-      </Container>
+        <Typography
+          variant="h4"
+          sx={{
+            textAlign: "center",
+            mt: 4,
+            mb: 2,
+            color: "#FF00FF",
+            textShadow: "0 0 10px rgba(255, 0, 255, 0.5)",
+          }}
+        >
+          Just play with the background
+        </Typography>      </Container>
     </div>
   );
 };

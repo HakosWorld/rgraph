@@ -10,7 +10,7 @@ import {
 } from "@mui/material";
 import { useNavigate } from "react-router-dom"; // Import useNavigate for navigation
 
-import backgroundGif from "../styles/background.gif"; // Import background image
+import backgroundGif from "../styles/backgrrond1fps.gif"; // Import background image
 
 function LoginPage() {
   const [username, setUsername] = useState("");
