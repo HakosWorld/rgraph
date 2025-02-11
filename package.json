@@ -5,15 +5,18 @@
   "dependencies": {
     "@emotion/react": "^11.14.0",
     "@emotion/styled": "^11.14.0",
-    "@mui/material": "^6.4.3",
+    "@mui/material": "^6.4.4",
     "cra-template": "1.2.0",
+    "framer-motion": "^12.4.2",
     "graphql": "^16.10.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-router-dom": "^7.1.5",
     "react-scripts": "5.0.1",
+    "react-tsparticles": "^2.9.3",
     "recharts": "^2.15.1",
     "rgraph": "file:",
+    "tsparticles": "^2.9.3",
     "web-vitals": "^4.2.4"
   },
   "scripts": {

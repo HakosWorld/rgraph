@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTheme } from "@mui/material/styles";
 import {
   CircularProgress,
   Container,
@@ -9,17 +10,92 @@ import {
   Paper,
   Box,
   Button,
+  CssBaseline,
 } from "@mui/material";
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from "recharts";
-import { PieChart, Pie, Cell, Tooltip as RechartTooltip, Legend as RechartLegend } from "recharts";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from "recharts";
+import {
+  PieChart,
+  Pie,
+  Cell,
+  Tooltip as RechartTooltip,
+  Legend as RechartLegend,
+} from "recharts";
+import Particles from "react-tsparticles";
+import { loadSlim } from "tsparticles-slim";
+import { motion } from "framer-motion";
+
+const HolographicBackground = () => (
+  <div
+    style={{
+      position: "fixed",
+      width: "100%",
+      height: "100%",
+      background: "linear-gradient(45deg, #1a1a2e 0%, #16213e 100%)", // Lighter gradient
+      zIndex: -2,
+    }}
+  >
+    <div
+      style={{
+        position: "absolute",
+        width: "200%",
+        height: "200%",
+        background: `linear-gradient(
+          45deg,
+          rgba(0, 255, 255, 0.1) 20%,
+          rgba(255, 0, 255, 0.1) 40%,
+          rgba(0, 255, 0, 0.1) 60%,
+          rgba(255, 255, 0, 0.1) 80%
+        )`,
+        animation: "rotate 20s linear infinite",
+        zIndex: -1,
+      }}
+    />
+  </div>
+);
+
+const GlassPanel = ({ children }) => (
+  <motion.div
+    initial={{ opacity: 0, y: 20 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ duration: 0.5 }}
+    style={{
+      background: "rgba(255, 255, 255, 0.1)", // Less transparent
+      backdropFilter: "blur(12px)",
+      borderRadius: "16px",
+      border: "1px solid rgba(255, 255, 255, 0.2)", // Brighter border
+      boxShadow: "0 8px 32px rgba(0, 0, 0, 0.2)",
+      padding: "2rem",
+      position: "relative",
+      overflow: "hidden",
+    }}
+    
+  >
+
+    {children}
+  </motion.div>
+);
 
 const Dashboard = () => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [graphData, setGraphData] = useState([]);
-  const [auditResults, setAuditResults] = useState([]);
+  const [cursorPos, setCursorPos] = useState({ x: 0, y: 0 });
 
+  const particlesInit = useCallback(async (engine) => {
+    await loadSlim(engine);
+  }, []);
+
+  const theme = useTheme();
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -88,30 +164,31 @@ const Dashboard = () => {
           throw new Error(errors[0].message || "Unknown error");
         }
 
-        setData(data); // Store the fetched data
+        setData(data);
 
         // Filter and aggregate XP data for graph
-        const filteredTransactions = data.transaction.filter(transaction =>
+        const filteredTransactions = data.transaction.filter((transaction) =>
           transaction.path.startsWith("/bahrain/bh-module")
         );
 
-        const aggregatedData = filteredTransactions.reduce((acc, transaction) => {
-          const date = new Date(transaction.createdAt).toLocaleDateString();
-          if (!acc[date]) {
-            acc[date] = 0;
-          }
-          acc[date] += transaction.amount;
-          return acc;
-        }, {});
+        const aggregatedData = filteredTransactions.reduce(
+          (acc, transaction) => {
+            const date = new Date(transaction.createdAt).toLocaleDateString();
+            if (!acc[date]) {
+              acc[date] = 0;
+            }
+            acc[date] += transaction.amount;
+            return acc;
+          },
+          {}
+        );
 
         const graphData = Object.keys(aggregatedData).map((date) => ({
           date,
           xpAmount: aggregatedData[date],
         }));
 
-        setGraphData(graphData); 
-        
-
+        setGraphData(graphData);
       } catch (err) {
         setError(err.message || "An error occurred");
       } finally {
@@ -123,9 +200,10 @@ const Dashboard = () => {
   }, [navigate]);
 
   const handleLogout = () => {
-    localStorage.removeItem("token"); // Clear token
-    navigate("/login"); // Redirect to login
+    localStorage.removeItem("token");
+    navigate("/login");
   };
+
   if (loading) {
     return (
       <Container sx={{ textAlign: "center", mt: 5 }}>
@@ -142,17 +220,20 @@ const Dashboard = () => {
     );
   }
 
-
   // Calculate pass/fail statistics
   const audits = data.user[0].audits || [];
-
-  const reassignedAudits = audits.filter((audit) => audit.closureType === "reassigned");
+  const reassignedAudits = audits.filter(
+    (audit) => audit.closureType === "reassigned"
+  );
   const unusedAudits = audits.filter((audit) => audit.closureType === "unused");
-  const succeededAudits = audits.filter((audit) => audit.closureType === "succeeded");
-  const expiredAudits = audits.filter((audit) => audit.closureType === "expired");
+  const succeededAudits = audits.filter(
+    (audit) => audit.closureType === "succeeded"
+  );
+  const expiredAudits = audits.filter(
+    (audit) => audit.closureType === "expired"
+  );
 
   const totalAudits = audits.length;
-
   const reassignedRatio = (reassignedAudits.length / totalAudits) * 100;
   const unusedRatio = (unusedAudits.length / totalAudits) * 100;
   const succeededRatio = (succeededAudits.length / totalAudits) * 100;
@@ -166,87 +247,222 @@ const Dashboard = () => {
     { name: "Expired", value: expiredRatio },
   ];
 
-
   // Calculate statistics
   const totalXP = data.transaction.reduce((sum, t) => sum + t.amount, 0);
   const auditRatio = data.user[0].auditRatio;
 
   return (
-    
-    <Container sx={{ mt: 5 }}>
+    <div
+      onMouseMove={(e) => setCursorPos({ x: e.clientX, y: e.clientY })}
+      style={{
+        minHeight: "100vh",
+        position: "relative",
+        overflowX: "hidden",
+        color: "#ffffff", // Ensure text is white
+      }}
+    >
+      <CssBaseline />
+      <HolographicBackground />
 
-<Box sx={{ display: "flex", justifyContent: "flex-end", mb: 2 }}>
-        <Button variant="contained" color="error" onClick={handleLogout}>
-          Logout
-        </Button>
-      </Box>
-      <Typography variant="h4" sx={{ textAlign: "center", mb: 4 }}>
-        User Dashboard
+      {/* Dynamic Cursor Spotlight */}
+      <div
+        style={{
+          position: "fixed",
+          width: "100vw",
+          height: "100vh",
+          background: `radial-gradient(circle at ${cursorPos.x}px ${cursorPos.y}px, 
+            rgba(0, 255, 255, 0.1) 0%, 
+            rgba(0, 0, 0, 0) 70%)`,
+          pointerEvents: "none",
+          transition: "background 0.3s ease-out",
+          zIndex: -1,
+        }}
+      />
+
+      {/* Particles Background */}
+      <Particles
+        init={particlesInit}
+        options={{
+          particles: {
+            number: { value: 50 },
+            color: { value: ["#0ff", "#f0f"] },
+            opacity: { value: 0.5 },
+            size: { value: 2 },
+            move: {
+              enable: true,
+              speed: 1,
+              direction: "none",
+              outModes: "out",
+              trail: {
+                enable: true,
+                length: 10,
+                fillColor: "#000",
+              },
+            },
+          },
+          interactivity: {
+            events: {
+              onHover: { enable: true, mode: "repulse" },
+            },
+          },
+        }}
+        style={{ position: "fixed", zIndex: -1 }}
+      />
+
+      {/* Main Content */}
+      <Container
+        sx={{
+          pt: 10,
+          transform: `translate(
+            ${(cursorPos.x - window.innerWidth / 2) * 0.01}px, 
+            ${(cursorPos.y - window.innerHeight / 2) * 0.01}px
+          )`,
+          transition: "transform 0.3s ease-out",
+        }}
+      >
+        {/* Logout Button */}
+        <motion.div
+          whileHover={{ scale: 1.05 }}
+          style={{ position: "absolute", top: 20, right: 20 }}
+        >
+          <Button
+            variant="contained"
+            onClick={handleLogout}
+            sx={{
+              background: "linear-gradient(45deg, #ff00ff 0%, #00ffff 100%)",
+              backdropFilter: "blur(10px)",
+              "&:hover": {
+                boxShadow: "0 0 20px rgba(0, 255, 255, 0.5)",
+              },
+            }}
+          >
+            Logout
+          </Button>
+        </motion.div>
+
+        {/* Dashboard Title */}
+        <Typography
+          variant="h2"
+          sx={{
+            background: "linear-gradient(45deg, #0ff 0%, #f0f 100%)",
+            WebkitBackgroundClip: "text",
+            WebkitTextFillColor: "transparent",
+            textAlign: "center",
+            mb: 4,
+            textShadow: "0 0 20px rgba(0, 255, 255, 0.5)",
+          }}
+        >
+          Your Epic Dashboard
+        </Typography>
+
+        {/* User Info Grid */}
+        <Grid container spacing={4} sx={{ mb: 6 }}>
+  {/* User Information */}
+  <Grid item xs={12} md={6}>
+    <GlassPanel>
+      <Typography variant="h6" sx={{ color: "#00FFFF", mb: 2 }}> {/* Neon Cyan */}
+        User Information
       </Typography>
+      <Typography variant="body1" sx={{ color: "#FFFFFF" }}> {/* White */}
+        Login: <span style={{ color: "#AAAAAA", fontWeight: "normal" }}>{data.user[0].login}</span>
+      </Typography>
+      <Typography variant="body1" sx={{ color: "#FFFFFF" }}>
+        Email: <span style={{ color: "#AAAAAA", fontWeight: "normal" }}>{data.user[0].email}</span>
+      </Typography>
+      <Typography variant="body1" sx={{ color: "#FFFFFF" }}>
+        Name: <span style={{ color: "#AAAAAA", fontWeight: "normal" }}>{data.user[0].firstName} {data.user[0].lastName}</span>
+      </Typography>
+      <Typography variant="body1" sx={{ color: "#FFFFFF" }}>
+        Phone Number: <span style={{ color: "#AAAAAA", fontWeight: "normal" }}>{data.user[0].attrs.Phone}</span>
+      </Typography>
+    </GlassPanel>
+  </Grid>
 
-      {/* User Information */}
-      <Grid container spacing={3}>
-        <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 3 }}>
-            <Typography variant="h6">User Information</Typography>
-            <Typography variant="body1">Login: {data.user[0].login}</Typography>
-            <Typography variant="body1">Email: {data.user[0].email}</Typography>
-            <Typography variant="body1">
-              Name: {data.user[0].firstName} {data.user[0].lastName}
-            </Typography>
-            <Typography variant="body1">
-              Phone Number: {data.user[0].attrs.Phone}
-            </Typography>
-          </Paper>
+  {/* Statistics */}
+  <Grid item xs={12} md={6}>
+  <GlassPanel>
+  <Typography variant="h6" sx={{ color: "#FF00FF", mb: 2 }}> {/* Neon Magenta */}
+    Statistics
+  </Typography>
+
+  <Typography variant="body1" sx={{ color: "#FFFFFF", fontWeight: "bold" }}> {/* White & Bold Label */}
+    Total Upvotes: <span style={{ color: "#AAAAAA", fontWeight: "normal" }}>{data.user[0].totalUp}</span>
+  </Typography>
+
+  <Typography variant="body1" sx={{ color: "#FFFFFF", fontWeight: "bold" }}>
+    Total Downvotes: <span style={{ color: "#AAAAAA", fontWeight: "normal" }}>{data.user[0].totalDown}</span>
+  </Typography>
+
+  <Typography variant="body1" sx={{ color: "#FFFFFF", fontWeight: "bold" }}>
+    Audit Ratio: <span style={{ color: "#AAAAAA", fontWeight: "normal" }}>{auditRatio}</span>
+  </Typography>
+
+  <Typography variant="body1" sx={{ color: "#FFFFFF", fontWeight: "bold" }}>
+    Total XP: <span style={{ color: "#AAAAAA", fontWeight: "normal" }}>{totalXP}</span>
+  </Typography>
+</GlassPanel>
+
+  </Grid>
+</Grid>
+
+        {/* XP Chart */}
+        <Grid container spacing={3} sx={{ mb: 4 }}> {/* Add mb: 4 here */}
+  <Grid item xs={12}>
+        <GlassPanel sx={{ mb: 6 }}>
+          <Typography variant="h5" sx={{ mb: 2 }}>
+            XP Earned Over Time
+          </Typography>
+          <ResponsiveContainer width="100%" height={400}>
+            <LineChart data={graphData}>
+              <CartesianGrid stroke="rgba(255, 255, 255, 0.1)" />
+              <XAxis dataKey="date" stroke="#0ff" tick={{ fill: "#fff" }} />
+              <YAxis stroke="#0ff" tick={{ fill: "#fff" }} />
+              <Tooltip
+        contentStyle={{
+          background: "rgba(0, 0, 0, 0.8)",
+          border: "1px solid rgba(255, 255, 255, 0.2)",
+          borderRadius: "8px",
+          backdropFilter: "blur(10px)",
+          color: "#fff",
+        }}
+      />
+              <Line
+                type="monotone"
+                dataKey="xpAmount"
+                stroke="url(#lineGradient)"
+                strokeWidth={2}
+                dot={false}
+              />
+              <defs>
+                <linearGradient id="lineGradient" x1="0" y1="0" x2="1" y2="0">
+                  <stop offset="0%" stopColor="#0ff" />
+                  <stop offset="100%" stopColor="#f0f" />
+                </linearGradient>
+              </defs>
+            </LineChart>
+          </ResponsiveContainer>
+        </GlassPanel>  </Grid>
         </Grid>
 
-        {/* Statistics */}
-        <Grid item xs={12} md={6}>
-          <Paper sx={{ p: 3 }}>
-            <Typography variant="h6">Statistics</Typography>
-            <Typography variant="body1">
-              Total Upvotes: {data.user[0].totalUp}
-            </Typography>
-            <Typography variant="body1">
-              Total Downvotes: {data.user[0].totalDown}
-            </Typography>
-            <Typography variant="body1">
-              Audit Ratio: {auditRatio}
-            </Typography>
-            <Typography variant="body1">Total XP: {totalXP}</Typography>
-          </Paper>
-        </Grid>
-      </Grid>
+        {/* Audit Chart */}
+        <Box sx={{ mb: 4 }}> {/* Add margin-bottom here */}
 
-      {/* XP Graph */}
-      <Typography variant="h5" sx={{ mt: 4, mb: 2 }}>
-        XP Earned Over Time
-      </Typography>
-      <Grid container spacing={3}>
-        <Grid item xs={12}>
-          <Paper sx={{ p: 3 }}>
-            <ResponsiveContainer width="100%" height={400}>
-              <LineChart data={graphData}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="date" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Line type="monotone" dataKey="xpAmount" stroke="#8884d8" />
-              </LineChart>
-            </ResponsiveContainer>
-          </Paper>
-        </Grid>
-      </Grid>
-
-       {/* Audit Pass/Fail Pie Chart */}
-        <Typography variant="h5" sx={{ mt: 4, mb: 2 }}>
-        All Assigned Audits
-      </Typography>
-      <Grid container justifyContent="center">
-        <Grid item xs={12} md={6}>
-        <Paper sx={{ p: 3, display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <PieChart width={400} height={300}>
+        <GlassPanel sx={{ mb: 20 }}> 
+        <Typography variant="h5" sx={{ mb: 2 }}>
+            Audit Results
+          </Typography>
+          <Paper
+            sx={{
+              p: 3,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              background: "transparent", 
+              boxShadow: "none", 
+            }}
+          >
+            {" "}
+            <PieChart width={400} height={300}>
               <Pie
                 data={chartData}
                 dataKey="value"
@@ -254,29 +470,30 @@ const Dashboard = () => {
                 cx="50%"
                 cy="50%"
                 outerRadius={120}
-                fill="#8884d8"            
+                fill="#8884d8"
+                stroke="none"
               >
-                <Cell fill="#00C49F" />
-                <Cell fill="#FF8042" />
-                <Cell fill="#0088FE" />
-                <Cell fill="#FFBB28" />
+<Cell fill="#2E86C1" /> {/* Dark Blue */}
+<Cell fill="#8E44AD" /> {/* Dark Purple */}
+<Cell fill="#1ABC9C" /> {/* Dark Teal */}
+<Cell fill="#34495E" /> {/* Dark Gray-Blue */}
               </Pie>
-              
-              <Tooltip />
-              
-              <Legend />
-           
-            </PieChart>
-                    {/* Right-side Text */}
-                    <Typography variant="h6" sx={{ ml: 4 }}>
-              All Audit Codes
-            </Typography>
-          </Paper>
-        </Grid>
-      </Grid>
 
-    
-    </Container>
+              <Tooltip />
+
+              <Legend />
+            </PieChart>
+            {/* Right-side Text */}
+            <Typography variant="h6" sx={{ ml: 4, color: "white" }}>
+  All your Audit Codes
+</Typography>
+
+          </Paper>
+        </GlassPanel>
+        </Box>
+
+      </Container>
+    </div>
   );
 };
 
