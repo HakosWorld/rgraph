@@ -124,6 +124,9 @@ function LoginPage() {
           "& .MuiInputLabel-root": {
             color: "rgba(83, 83, 83, 0.7)", // Light label
           },
+          "& .MuiInputBase-input": { // Target the input text specifically
+            color: "rgba(83, 83, 83, 0.7)", // Red text for the input value
+          },
           "& .MuiInputLabel-root.Mui-focused": {
             color: "#FF00FF", // Neon magenta on focus
           },
