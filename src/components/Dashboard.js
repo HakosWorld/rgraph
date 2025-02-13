@@ -104,7 +104,8 @@ const Dashboard = () => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const response = await fetch(
+        // Normal Query: Fetch basic user information
+        const userResponse = await fetch(
           "https://learn.reboot01.com/api/graphql-engine/v1/graphql",
           {
             method: "POST",
@@ -125,28 +126,83 @@ const Dashboard = () => {
                     auditRatio
                     totalUp
                     totalDown
-                    audits {
-                       auditedAt
-                       auditorId
-                       closureType
-                       id
-                       group {
-                           pathByPath {
-                               object {
-                                   name
-                               }
-                           }
-                       }
-                   }
                   }
+                }
+              `,
+            }),
+          }
+        );
+    
+        if (!userResponse.ok) {
+          throw new Error("Failed to fetch user data");
+        }
+    
+        const userData = await userResponse.json();
+        if (userData.errors && userData.errors.length > 0) {
+          throw new Error(userData.errors[0].message || "Unknown error");
+        }
+    
+        // Nested Query: Fetch user audits with nested information about the group
+        const auditsResponse = await fetch(
+          "https://learn.reboot01.com/api/graphql-engine/v1/graphql",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              query: `
+                query {
+                  user {
+                    audits {
+                      auditedAt
+                      auditorId
+                      closureType
+                      id
+                      group {
+                        pathByPath {
+                          object {
+                            name
+                          }
+                        }
+                      }
+                    }
+                  }
+                }
+              `,
+            }),
+          }
+        );
+    
+        if (!auditsResponse.ok) {
+          throw new Error("Failed to fetch audits data");
+        }
+    
+        const auditsData = await auditsResponse.json();
+        if (auditsData.errors && auditsData.errors.length > 0) {
+          throw new Error(auditsData.errors[0].message || "Unknown error");
+        }
+    
+        // Query with Arguments: Fetch transactions with specific arguments
+        const transactionsResponse = await fetch(
+          "https://learn.reboot01.com/api/graphql-engine/v1/graphql",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${token}`,
+            },
+            body: JSON.stringify({
+              query: `
+                query {
                   transaction(
                     where: {
                       type: { _eq: "xp" }
                       _and: [
                         { path: { _nlike: "%/%piscine%/%" } }
-                         { path: { _nlike: "%/%piscine%/" } }
-                         { path: { _nlike: "%/%piscine/%" } }
-                            
+                        { path: { _nlike: "%/%piscine%/" } }
+                        { path: { _nlike: "%/%piscine/%" } }
                       ]
                     }
                   ) {
@@ -155,29 +211,35 @@ const Dashboard = () => {
                     createdAt
                     path
                   }
-                  
                 }
               `,
             }),
           }
         );
-
-        if (!response.ok) {
-          throw new Error("Failed to fetch data");
+    
+        if (!transactionsResponse.ok) {
+          throw new Error("Failed to fetch transactions data");
         }
-
-        const { data, errors } = await response.json();
-        if (errors && errors.length > 0) {
-          throw new Error(errors[0].message || "Unknown error");
+    
+        const transactionsData = await transactionsResponse.json();
+        if (transactionsData.errors && transactionsData.errors.length > 0) {
+          throw new Error(transactionsData.errors[0].message || "Unknown error");
         }
-
+    
+        // Combine the data from all queries
+        const data = {
+          user: userData.data.user,
+          audits: auditsData.data.user[0].audits,
+          transaction: transactionsData.data.transaction,
+        };
+    
         setData(data);
-
+    
         // Filter and aggregate XP data for graph
         const filteredTransactions = data.transaction.filter((transaction) =>
           transaction.path.startsWith("/bahrain/bh-module")
         );
-
+    
         const aggregatedData = filteredTransactions.reduce(
           (acc, transaction) => {
             const date = new Date(transaction.createdAt).toLocaleDateString();
@@ -189,12 +251,12 @@ const Dashboard = () => {
           },
           {}
         );
-
+    
         const graphData = Object.keys(aggregatedData).map((date) => ({
           date,
           xpAmount: aggregatedData[date],
         }));
-
+    
         setGraphData(graphData);
       } catch (err) {
         setError(err.message || "An error occurred");
@@ -202,7 +264,7 @@ const Dashboard = () => {
         setLoading(false);
       }
     };
-
+    
     fetchData();
   }, [navigate]);
 
@@ -228,8 +290,7 @@ const Dashboard = () => {
   }
 
   // Calculate pass/fail statistics
-  const audits = data.user[0].audits || [];
-  const reassignedAudits = audits.filter(
+  const audits = data.audits || [];  const reassignedAudits = audits.filter(
     (audit) => audit.closureType === "reassigned"
   );
   const unusedAudits = audits.filter((audit) => audit.closureType === "unused");
