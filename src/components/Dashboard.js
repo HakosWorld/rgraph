@@ -140,21 +140,21 @@ const Dashboard = () => {
                    }
                   }
                   transaction(
-    where: {
-      type: { _eq: "xp" }
-      _and: [
-        { path: { _nlike: "%/%piscine%/%" } }
-         { path: { _nlike: "%/%piscine%/" } }
-         { path: { _nlike: "%/%piscine/%" } }
-     
-      ]
-    }
-  ) {
-    amount
-    type
-    createdAt
-    path
-  }
+                    where: {
+                      type: { _eq: "xp" }
+                      _and: [
+                        { path: { _nlike: "%/%piscine%/%" } }
+                         { path: { _nlike: "%/%piscine%/" } }
+                         { path: { _nlike: "%/%piscine/%" } }
+                            
+                      ]
+                    }
+                  ) {
+                    amount
+                    type
+                    createdAt
+                    path
+                  }
                   
                 }
               `,
@@ -398,13 +398,13 @@ const Dashboard = () => {
 
   <Typography variant="body1" sx={{ color: "#FFFFFF", fontWeight: "bold" }}> {/* White & Bold Label */}
     Total Upvotes:  <span style={{ color: "#AAAAAA", fontWeight: "normal" }}>
-    {data.user[0].totalUp ? (data.user[0].totalUp / 1024).toFixed(2) : "N/A"} KB
+    {data.user[0].totalUp ? (data.user[0].totalUp / 1000).toFixed(2) : "N/A"} KB
   </span>
   </Typography>
 
   <Typography variant="body1" sx={{ color: "#FFFFFF", fontWeight: "bold" }}>
     Total Downvotes:<span style={{ color: "#AAAAAA", fontWeight: "normal" }}>
-    {data.user[0].totalDown ? (data.user[0].totalDown / 1024).toFixed(2) : "N/A"} KB
+    {data.user[0].totalDown ? (data.user[0].totalDown / 1000).toFixed(2) : "N/A"} KB
   </span>
   </Typography>
 
@@ -415,7 +415,7 @@ const Dashboard = () => {
   <Typography variant="body1" sx={{ color: "#FFFFFF", fontWeight: "bold" }}>
   Total XP:{" "}
   <span style={{ color: "#AAAAAA", fontWeight: "normal" }}>
-    {totalXP ? (totalXP / 1024).toFixed(2) + " KB" : "0 KB"}
+    {totalXP ? (totalXP / 1000).toFixed(2) + " KB" : "0 KB"}
   </span>
 </Typography>
 </GlassPanel>
@@ -424,7 +424,7 @@ const Dashboard = () => {
 </Grid>
 
         {/* XP Chart */}
-        <Grid container spacing={3} sx={{ mb: 4 }}> {/* Add mb: 4 here */}
+        <Grid container spacing={3} sx={{ mb: 4 }}>
   <Grid item xs={12}>
         <GlassPanel sx={{ mb: 6 }}>
           <Typography variant="h5" sx={{ mb: 2 }}>
