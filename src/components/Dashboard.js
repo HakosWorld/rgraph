@@ -21,11 +21,7 @@ import {
   Legend,
   ResponsiveContainer,
 } from "recharts";
-import {
-  PieChart,
-  Pie,
-  Cell,
-} from "recharts";
+import { PieChart, Pie, Cell } from "recharts";
 import Particles from "react-tsparticles";
 import { loadSlim } from "tsparticles-slim";
 import { motion } from "framer-motion";
@@ -74,9 +70,7 @@ const GlassPanel = ({ children }) => (
       position: "relative",
       overflow: "hidden",
     }}
-    
   >
-
     {children}
   </motion.div>
 );
@@ -132,16 +126,18 @@ const Dashboard = () => {
             }),
           }
         );
-    
+
         if (!userResponse.ok) {
           throw new Error("Failed to fetch user data");
         }
-    
+
         const userData = await userResponse.json();
         if (userData.errors && userData.errors.length > 0) {
           throw new Error(userData.errors[0].message || "Unknown error");
         }
-    
+       // console.log(userData.data.user[0].id);
+        let varuser = userData.data.user[0].id;
+
         // Nested Query: Fetch user audits with nested information about the group
         const auditsResponse = await fetch(
           "https://learn.reboot01.com/api/graphql-engine/v1/graphql",
@@ -174,16 +170,16 @@ const Dashboard = () => {
             }),
           }
         );
-    
+
         if (!auditsResponse.ok) {
           throw new Error("Failed to fetch audits data");
         }
-    
+
         const auditsData = await auditsResponse.json();
         if (auditsData.errors && auditsData.errors.length > 0) {
           throw new Error(auditsData.errors[0].message || "Unknown error");
         }
-    
+
         // Query with Arguments: Fetch transactions with specific arguments
         const transactionsResponse = await fetch(
           "https://learn.reboot01.com/api/graphql-engine/v1/graphql",
@@ -195,68 +191,82 @@ const Dashboard = () => {
             },
             body: JSON.stringify({
               query: `
-                query {
+                 query GetTransactions($userId: Int!) {
                   transaction(
                     where: {
-                      type: { _eq: "xp" }
-                      _and: [
-                        { path: { _nlike: "%/%piscine%/%" } }
-                        { path: { _nlike: "%/%piscine%/" } }
-                        { path: { _nlike: "%/%piscine/%" } }
-                      ]
-                    }
-                  ) {
-                    amount
-                    type
-                    createdAt
-                    path
-                  }
-                }
-              `,
+                         userId: { _eq: $userId }
+                       type: { _eq: "xp" }
+                       _and: [
+                         { path: { _nlike: "%/%piscine%/%" } }
+                         { path: { _nlike: "%/%piscine%/" } }
+                         { path: { _nlike: "%/%piscine/%" } }
+                       ]
+                     }
+                   ) {
+                     amount
+                     type
+                     createdAt
+                     path
+                   }
+                 }
+               `,
+              variables: {
+                userId: varuser,
+              },
             }),
           }
         );
-    
+
         if (!transactionsResponse.ok) {
           throw new Error("Failed to fetch transactions data");
         }
-    
+
         const transactionsData = await transactionsResponse.json();
         if (transactionsData.errors && transactionsData.errors.length > 0) {
-          throw new Error(transactionsData.errors[0].message || "Unknown error");
+          throw new Error(
+            transactionsData.errors[0].message || "Unknown error"
+          );
         }
-    
+
         // Combine the data from all queries
         const data = {
           user: userData.data.user,
           audits: auditsData.data.user[0].audits,
           transaction: transactionsData.data.transaction,
         };
-    
+
         setData(data);
-    
+
         // Filter and aggregate XP data for graph
         const filteredTransactions = data.transaction.filter((transaction) =>
           transaction.path.startsWith("/bahrain/bh-module")
         );
-    
-        const aggregatedData = filteredTransactions.reduce(
-          (acc, transaction) => {
-            const date = new Date(transaction.createdAt).toLocaleDateString();
-            if (!acc[date]) {
-              acc[date] = 0;
-            }
-            acc[date] += transaction.amount;
-            return acc;
-          },
+
+        const aggregatedData = filteredTransactions.reduce((acc, transaction) => {
+          const date = new Date(transaction.createdAt).toLocaleDateString();
+          const moduleName = transaction.path.split("/bahrain/bh-module/")[1]?.split("/")[0] || "Unknown";
+        
+          if (!acc[date]) { 
+            acc[date] = {}; 
+          }
+          if (!acc[date][moduleName]) {
+            acc[date][moduleName] = 0;
+          }
+        
+          acc[date][moduleName] += transaction.amount;
+          return acc;
+        },
           {}
         );
-    
-        const graphData = Object.keys(aggregatedData).map((date) => ({
-          date,
-          xpAmount: aggregatedData[date],
-        }));
-    
+
+        const graphData = Object.keys(aggregatedData).flatMap((date) => 
+          Object.keys(aggregatedData[date]).map((moduleName) => ({
+            date,
+            moduleName,
+            xpAmount: aggregatedData[date][moduleName] / 1000,
+          }))
+        );
+
         setGraphData(graphData);
       } catch (err) {
         setError(err.message || "An error occurred");
@@ -264,7 +274,7 @@ const Dashboard = () => {
         setLoading(false);
       }
     };
-    
+
     fetchData();
   }, [navigate]);
 
@@ -290,7 +300,8 @@ const Dashboard = () => {
   }
 
   // Calculate pass/fail statistics
-  const audits = data.audits || [];  const reassignedAudits = audits.filter(
+  const audits = data.audits || [];
+  const reassignedAudits = audits.filter(
     (audit) => audit.closureType === "reassigned"
   );
   const unusedAudits = audits.filter((audit) => audit.closureType === "unused");
@@ -308,8 +319,6 @@ const Dashboard = () => {
   let succeededRatio = (succeededAudits.length / totalAudits) * 100;
 
   let expiredRatio = (expiredAudits.length / totalAudits) * 100;
-
-  
 
   // Data for Pie chart
   const chartData = [
@@ -411,7 +420,6 @@ const Dashboard = () => {
             Logout
           </Button>
         </motion.div>
-
         {/* Dashboard Title */}
         <Typography
           variant="h2"
@@ -426,151 +434,201 @@ const Dashboard = () => {
         >
           Your Epic Dashboard
         </Typography>
-
         {/* User Info Grid */}
         <Grid container spacing={4} sx={{ mb: 6 }}>
-  {/* User Information */}
-  <Grid item xs={12} md={6}>
-    <GlassPanel>
-      <Typography variant="h6" sx={{ color: "#00FFFF", mb: 2 }}> {/* Neon Cyan */}
-        User Information
-      </Typography>
-      <Typography variant="body1" sx={{ color: "#FFFFFF" }}> {/* White */}
-        Login: <span style={{ color: "#AAAAAA", fontWeight: "normal" }}>{data.user[0].login}</span>
-      </Typography>
-      <Typography variant="body1" sx={{ color: "#FFFFFF" }}>
-        Email: <span style={{ color: "#AAAAAA", fontWeight: "normal" }}>{data.user[0].email}</span>
-      </Typography>
-      <Typography variant="body1" sx={{ color: "#FFFFFF" }}>
-        Name: <span style={{ color: "#AAAAAA", fontWeight: "normal" }}>{data.user[0].firstName} {data.user[0].lastName}</span>
-      </Typography>
-      <Typography variant="body1" sx={{ color: "#FFFFFF" }}>
-        Phone Number: <span style={{ color: "#AAAAAA", fontWeight: "normal" }}>{data.user[0].attrs.Phone}</span>
-      </Typography>
-    </GlassPanel>
-  </Grid>
+          {/* User Information */}
+          <Grid item xs={12} md={6}>
+            <GlassPanel>
+              <Typography variant="h6" sx={{ color: "#00FFFF", mb: 2 }}>
+                {" "}
+                {/* Neon Cyan */}
+                User Information
+              </Typography>
+              <Typography variant="body1" sx={{ color: "#FFFFFF" }}>
+                {" "}
+                {/* White */}
+                Login:{" "}
+                <span style={{ color: "#AAAAAA", fontWeight: "normal" }}>
+                  {data.user[0].login}
+                </span>
+              </Typography>
+              <Typography variant="body1" sx={{ color: "#FFFFFF" }}>
+                Email:{" "}
+                <span style={{ color: "#AAAAAA", fontWeight: "normal" }}>
+                  {data.user[0].email}
+                </span>
+              </Typography>
+              <Typography variant="body1" sx={{ color: "#FFFFFF" }}>
+                Name:{" "}
+                <span style={{ color: "#AAAAAA", fontWeight: "normal" }}>
+                  {data.user[0].firstName} {data.user[0].lastName}
+                </span>
+              </Typography>
+              <Typography variant="body1" sx={{ color: "#FFFFFF" }}>
+                Phone Number:{" "}
+                <span style={{ color: "#AAAAAA", fontWeight: "normal" }}>
+                  {data.user[0].attrs.PhoneNumber || "Phone not available"}
+                </span>
+              </Typography>
+            </GlassPanel>
+          </Grid>
 
-  {/* Statistics */}
-  <Grid item xs={12} md={6}>
-  <GlassPanel>
-  <Typography variant="h6" sx={{ color: "#FF00FF", mb: 2 }}> {/* Neon Magenta */}
-    Statistics
-  </Typography>
+          {/* Statistics */}
+          <Grid item xs={12} md={6}>
+            <GlassPanel>
+              <Typography variant="h6" sx={{ color: "#FF00FF", mb: 2 }}>
+                {" "}
+                {/* Neon Magenta */}
+                Statistics
+              </Typography>
 
-  <Typography variant="body1" sx={{ color: "#FFFFFF", fontWeight: "bold" }}> {/* White & Bold Label */}
-    Total Upvotes:  <span style={{ color: "#AAAAAA", fontWeight: "normal" }}>
-    {data.user[0].totalUp ? (data.user[0].totalUp / 1000).toFixed(2) : "N/A"} KB
-  </span>
-  </Typography>
+              <Typography
+                variant="body1"
+                sx={{ color: "#FFFFFF", fontWeight: "bold" }}
+              >
+                {" "}
+                {/* White & Bold Label */}
+                Total Upvotes:{" "}
+                <span style={{ color: "#AAAAAA", fontWeight: "normal" }}>
+                  {data.user[0].totalUp
+                    ? (data.user[0].totalUp / 1000).toFixed(2)
+                    : "N/A"}{" "}
+                  KB
+                </span>
+              </Typography>
 
-  <Typography variant="body1" sx={{ color: "#FFFFFF", fontWeight: "bold" }}>
-    Total Downvotes:<span style={{ color: "#AAAAAA", fontWeight: "normal" }}>
-    {data.user[0].totalDown ? (data.user[0].totalDown / 1000).toFixed(2) : "N/A"} KB
-  </span>
-  </Typography>
+              <Typography
+                variant="body1"
+                sx={{ color: "#FFFFFF", fontWeight: "bold" }}
+              >
+                Total Downvotes:
+                <span style={{ color: "#AAAAAA", fontWeight: "normal" }}>
+                  {data.user[0].totalDown
+                    ? (data.user[0].totalDown / 1000).toFixed(2)
+                    : "N/A"}{" "}
+                  KB
+                </span>
+              </Typography>
 
-  <Typography variant="body1" sx={{ color: "#FFFFFF", fontWeight: "bold" }}>
-    Audit Ratio: <span style={{ color: "#AAAAAA", fontWeight: "normal" }}> {auditRatio.toFixed(2)}</span>
-  </Typography>
+              <Typography
+                variant="body1"
+                sx={{ color: "#FFFFFF", fontWeight: "bold" }}
+              >
+                Audit Ratio:{" "}
+                <span style={{ color: "#AAAAAA", fontWeight: "normal" }}>
+                  {" "}
+                  {auditRatio.toFixed(2)}
+                </span>
+              </Typography>
 
-  <Typography variant="body1" sx={{ color: "#FFFFFF", fontWeight: "bold" }}>
-  Total XP:{" "}
-  <span style={{ color: "#AAAAAA", fontWeight: "normal" }}>
-    {totalXP ? (totalXP / 1000).toFixed(2) + " KB" : "0 KB"}
-  </span>
-</Typography>
-</GlassPanel>
-
-  </Grid>
-</Grid>
-
+              <Typography
+                variant="body1"
+                sx={{ color: "#FFFFFF", fontWeight: "bold" }}
+              >
+                Total XP:{" "}
+                <span style={{ color: "#AAAAAA", fontWeight: "normal" }}>
+                  {totalXP ? (totalXP / 1000).toFixed(2) + " KB" : "0 KB"}
+                </span>
+              </Typography>
+            </GlassPanel>
+          </Grid>
+        </Grid>
         {/* XP Chart */}
         <Grid container spacing={3} sx={{ mb: 4 }}>
-  <Grid item xs={12}>
-        <GlassPanel sx={{ mb: 6 }}>
-          <Typography variant="h5" sx={{ mb: 2 }}>
-            XP Earned Over Time
-          </Typography>
-          <ResponsiveContainer width="100%" height={400}>
-            <LineChart data={graphData}>
-              <CartesianGrid stroke="rgba(255, 255, 255, 0.1)" />
-              <XAxis dataKey="date" stroke="#0ff" tick={{ fill: "#fff" }} />
-              <YAxis stroke="#0ff" tick={{ fill: "#fff" }} />
-              <Tooltip
-        contentStyle={{
-          background: "rgba(0, 0, 0, 0.8)",
-          border: "1px solid rgba(255, 255, 255, 0.2)",
-          borderRadius: "8px",
-          backdropFilter: "blur(10px)",
-          color: "#fff",
-        }}
-      />
-              <Line
-                type="monotone"
-                dataKey="xpAmount"
-                stroke="url(#lineGradient)"
-                strokeWidth={2}
-                dot={false}
-              />
-              <defs>
-                <linearGradient id="lineGradient" x1="0" y1="0" x2="1" y2="0">
-                  <stop offset="0%" stopColor="#0ff" />
-                  <stop offset="100%" stopColor="#f0f" />
-                </linearGradient>
-              </defs>
-            </LineChart>
-          </ResponsiveContainer>
-        </GlassPanel>  </Grid>
+          <Grid item xs={12}>
+            <GlassPanel sx={{ mb: 6 }}>
+              <Typography variant="h5" sx={{ mb: 2 }}>
+                XP Earned Over Time
+              </Typography>
+              <ResponsiveContainer width="100%" height={400}>
+                <LineChart data={graphData}>
+                  <CartesianGrid stroke="rgba(255, 255, 255, 0.1)" />
+                  <XAxis dataKey="date" stroke="#0ff" tick={{ fill: "#fff" }} />
+                  <YAxis stroke="#0ff" tick={{ fill: "#fff" }} />
+                  <Tooltip
+                    contentStyle={{
+                      background: "rgba(0, 0, 0, 0.8)",
+                      border: "1px solid rgba(255, 255, 255, 0.2)",
+                      borderRadius: "8px",
+                      backdropFilter: "blur(10px)",
+                      color: "#fff",
+                    }}
+                    formatter={(value, name, props) => {
+                      const moduleName = props.payload?.moduleName || "Unknown";
+                      return [`${value} KB`, `${moduleName}`];
+                    }}
+
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="xpAmount"
+                    stroke="url(#lineGradient)"
+                    strokeWidth={2}
+                    dot={false}
+                  />
+                  <defs>
+                    <linearGradient
+                      id="lineGradient"
+                      x1="0"
+                      y1="0"
+                      x2="1"
+                      y2="0"
+                    >
+                      <stop offset="0%" stopColor="#0ff" />
+                      <stop offset="100%" stopColor="#f0f" />
+                    </linearGradient>
+                  </defs>
+                </LineChart>
+              </ResponsiveContainer>
+            </GlassPanel>{" "}
+          </Grid>
         </Grid>
-
         {/* Audit Chart */}
-        <Box sx={{ mb: 120 }}> {/* Add margin-bottom here */}
+        <Box sx={{ mb: 120 }}>
+          {" "}
+          {/* Add margin-bottom here */}
+          <GlassPanel sx={{ mb: 60 }}>
+            <Typography variant="h5" sx={{ mb: 2 }}>
+              Audit Results
+            </Typography>
+            <Paper
+              sx={{
+                p: 3,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                background: "transparent",
+                boxShadow: "none",
+              }}
+            >
+              {" "}
+              <PieChart width={400} height={300}>
+                <Pie
+                  data={chartData}
+                  dataKey="value"
+                  nameKey="name"
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={120}
+                  fill="#8884d8"
+                  stroke="none"
+                >
+                  <Cell fill="#2E86C1" /> {/* Dark Blue */}
+                  <Cell fill="#8E44AD" /> {/* Dark Purple */}
+                  <Cell fill="#1ABC9C" /> {/* Dark Teal */}
+                  <Cell fill="#34495E" /> {/* Dark Gray-Blue */}
+                </Pie>
 
-        <GlassPanel sx={{ mb: 60 }}> 
-        <Typography variant="h5" sx={{ mb: 2 }}>
-            Audit Results
-          </Typography>
-          <Paper
-            sx={{
-              p: 3,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "space-between",
-              background: "transparent", 
-              boxShadow: "none", 
-            }}
-          >
-            {" "}
-            <PieChart width={400} height={300}>
-              <Pie
-                data={chartData}
-                dataKey="value"
-                nameKey="name"
-                cx="50%"
-                cy="50%"
-                outerRadius={120}
-                fill="#8884d8"
-                stroke="none"
-              >
-<Cell fill="#2E86C1" /> {/* Dark Blue */}
-<Cell fill="#8E44AD" /> {/* Dark Purple */}
-<Cell fill="#1ABC9C" /> {/* Dark Teal */}
-<Cell fill="#34495E" /> {/* Dark Gray-Blue */}
-              </Pie>
+                <Tooltip formatter={(value) => `${value.toFixed(2)}%`} />
 
-              <Tooltip
-              formatter={(value) => `${value.toFixed(2)}%`}
-              />
-
-              <Legend />
-            </PieChart>
-            {/* Right-side Text */}
-            <Typography variant="h6" sx={{ ml: 4, color: "white" }}>
-  All your Audit Codes
-</Typography>
-
-          </Paper>
-        </GlassPanel>
+                <Legend />
+              </PieChart>
+              {/* Right-side Text */}
+              <Typography variant="h6" sx={{ ml: 4, color: "white" }}>
+                What happened with the audits you got before.
+              </Typography>
+            </Paper>
+          </GlassPanel>
         </Box>
         <Typography
           variant="h4"
@@ -583,7 +641,8 @@ const Dashboard = () => {
           }}
         >
           Just play with the background
-        </Typography>      </Container>
+        </Typography>{" "}
+      </Container>
     </div>
   );
 };
